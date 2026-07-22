@@ -104,8 +104,12 @@
   .movie-card {
     @apply bg-dark-100 p-5 rounded-2xl shadow-inner shadow-light-100/10;
 
-    & img {
-      @apply rounded-lg h-auto w-full;
+    & .poster-button {
+      @apply w-full rounded-lg border border-transparent transition-all duration-200 hover:border-[#AB8BFF] hover:shadow-lg hover:shadow-[#AB8BFF]/20;
+    }
+
+    & .poster-button img {
+      @apply rounded-lg h-auto w-full object-cover transition-transform duration-200 hover:scale-[1.02];
     }
 
     & h3 {
@@ -116,16 +120,12 @@
       @apply mt-2 flex flex-row items-center flex-wrap gap-2;
     }
 
-    & .rating {
-      @apply flex flex-row items-center gap-1;
+    & .heart-button {
+      @apply flex min-w-10 items-center justify-center rounded-full border border-light-100/20 bg-white/5 px-3 py-2 text-lg text-gray-200 transition-all duration-200 hover:border-[#AB8BFF] hover:text-[#D6C7FF];
     }
 
-    & .rating img {
-      @apply size-4 object-contain;
-    }
-
-    & .rating p {
-      @apply font-bold text-base text-white;
+    & .heart-button.liked {
+      @apply border-[#ff5e7d] bg-[#ff5e7d]/20 text-[#ff5e7d];
     }
 
     & .content span {

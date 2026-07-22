@@ -1,35 +1,40 @@
-import React from 'react'
+import { useState } from 'react'
 
-const MovieCard = ({ movie:
-  { title, vote_average, poster_path, release_date, original_language }
-}) => {
+const MovieCard = ({ movie: { Title, Poster, Year, Type }, onSelect }) => {
+  const [liked, setLiked] = useState(false)
+
+  const posterUrl = Poster && Poster !== 'N/A' ? Poster : '/no-movie.png'
+  const year = Year && Year !== 'N/A' ? Year : 'N/A'
+  const type = Type && Type !== 'N/A' ? Type : 'movie'
+
   return (
     <div className="movie-card">
-      <img
-        src={poster_path ?
-          `https://image.tmdb.org/t/p/w500/${poster_path}` : '/no-movie.png'}
-        alt={title}
-      />
+      <button type="button" className="poster-button" onClick={onSelect}>
+        <img src={posterUrl} alt={Title} />
+      </button>
 
       <div className="mt-4">
-        <h3>{title}</h3>
+        <h3>{Title}</h3>
 
         <div className="content">
-          <div className="rating">
-            <img src="star.svg" alt="Star Icon" />
-            <p>{vote_average ? vote_average.toFixed(1) : 'N/A'}</p>
-          </div>
+          <button
+            type="button"
+            className={`heart-button ${liked ? 'liked' : ''}`}
+            onClick={() => setLiked((prev) => !prev)}
+            aria-label={liked ? 'Unlike movie' : 'Like movie'}
+          >
+            ♥
+          </button>
 
           <span>•</span>
-          <p className="lang">{original_language}</p>
+          <p className="lang">{type}</p>
 
           <span>•</span>
-          <p className="year">
-            {release_date ? release_date.split('-')[0] : 'N/A'}
-          </p>
+          <p className="year">{year}</p>
         </div>
       </div>
     </div>
   )
 }
+
 export default MovieCard

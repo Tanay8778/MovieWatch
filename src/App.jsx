@@ -2,20 +2,12 @@ import { useEffect, useState } from 'react'
 import Search from './components/Search.jsx'
 import Spinner from './components/Spinner.jsx'
 import MovieCard from './components/MovieCard.jsx'
+import MovieDetails from './components/MovieDetails.jsx'
 import { useDebounce } from 'react-use'
 import { getTrendingMovies, updateSearchCount } from './appwrite.js'
 
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-
-const API_OPTIONS = {
-  method: 'GET',
-  headers: {
-    accept: 'application/json',
-    Authorization: `Bearer ${API_KEY}`
-  }
-}
+const API_BASE_URL = 'https://www.omdbapi.com/';
+const API_KEY = import.meta.env.VITE_OMDB_API_KEY;
 
 const App = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
@@ -26,6 +18,7 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const [trendingMovies, setTrendingMovies] = useState([]);
+  const [selectedMovieId, setSelectedMovieId] = useState(null);
 
   // Debounce the search term to prevent making too many API requests
   // by waiting for the user to stop typing for 500ms
@@ -37,27 +30,28 @@ const App = () => {
 
     try {
       const endpoint = query
-        ? `${API_BASE_URL}/search/movie?query=${encodeURIComponent(query)}`
-        : `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
+        ? `${API_BASE_URL}?s=${encodeURIComponent(query)}&apikey=${API_KEY}`
+        : `${API_BASE_URL}?s=movie&apikey=${API_KEY}`;
 
-      const response = await fetch(endpoint, API_OPTIONS);
+      const response = await fetch(endpoint);
 
-      if(!response.ok) {
+      if (!response.ok) {
         throw new Error('Failed to fetch movies');
       }
 
       const data = await response.json();
 
-      if(data.Response === 'False') {
+      if (data.Response === 'False') {
         setErrorMessage(data.Error || 'Failed to fetch movies');
         setMovieList([]);
         return;
       }
 
-      setMovieList(data.results || []);
+      const movies = data.Search || [];
+      setMovieList(movies);
 
-      if(query && data.results.length > 0) {
-        await updateSearchCount(query, data.results[0]);
+      if (query && movies.length > 0) {
+        await updateSearchCount(query, movies[0]);
       }
     } catch (error) {
       console.error(`Error fetching movies: ${error}`);
@@ -97,36 +91,46 @@ const App = () => {
           <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
         </header>
 
-        {trendingMovies.length > 0 && (
-          <section className="trending">
-            <h2>Trending Movies</h2>
+        {selectedMovieId ? (
+          <MovieDetails movieId={selectedMovieId} onBack={() => setSelectedMovieId(null)} />
+        ) : (
+          <>
+            {/* {trendingMovies.length > 0 && (
+              <section className="trending">
+                <h2>Trending Movies</h2>
 
-            <ul>
-              {trendingMovies.map((movie, index) => (
-                <li key={movie.$id}>
-                  <p>{index + 1}</p>
-                  <img src={movie.poster_url} alt={movie.title} />
-                </li>
-              ))}
-            </ul>
-          </section>
+                <ul>
+                  {trendingMovies.map((movie, index) => (
+                    <li key={movie.$id}>
+                      <p>{index + 1}</p>
+                      <img src={movie.poster_url} alt={movie.title} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )} */}
+
+            <section className="all-movies">
+              <h2>All Movies</h2>
+
+              {isLoading ? (
+                <Spinner />
+              ) : errorMessage ? (
+                <p className="text-red-500">{errorMessage}</p>
+              ) : (
+                <ul>
+                  {movieList.map((movie) => (
+                    <MovieCard
+                      key={movie.imdbID || movie.Title}
+                      movie={movie}
+                      onSelect={() => setSelectedMovieId(movie.imdbID)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          </>
         )}
-
-        <section className="all-movies">
-          <h2>All Movies</h2>
-
-          {isLoading ? (
-            <Spinner />
-          ) : errorMessage ? (
-            <p className="text-red-500">{errorMessage}</p>
-          ) : (
-            <ul>
-              {movieList.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} />
-              ))}
-            </ul>
-          )}
-        </section>
       </div>
     </main>
   )
