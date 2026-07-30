@@ -4,7 +4,97 @@ import Spinner from './components/Spinner.jsx'
 import MovieCard from './components/MovieCard.jsx'
 import MovieDetails from './components/MovieDetails.jsx'
 import { useDebounce } from 'react-use'
-import { getTrendingMovies, updateSearchCount } from './appwrite.js'
+import { getTrendingMovies, getWatchlistItems, updateSearchCount } from './appwrite.js'
+
+const WatchlistView = ({ onBack }) => {
+  const [watchlistMovies, setWatchlistMovies] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  useEffect(() => {
+    const loadWatchlist = async () => {
+      setIsLoading(true)
+      setErrorMessage('')
+
+      try {
+        const movies = await getWatchlistItems()
+        setWatchlistMovies(movies)
+      } catch (error) {
+        console.error(error)
+        setErrorMessage('Unable to load your watchlist right now.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadWatchlist()
+  }, [])
+
+  return (
+    <section className="watchlist-view">
+      <div className="flex items-center justify-between mb-8">
+        <h2 style={{ color: 'white', fontSize: '2rem', margin: 0 }}>Your Watchlist</h2>
+        <button 
+          type="button" 
+          onClick={onBack}
+          style={{ padding: '8px 16px', backgroundColor: '#4b5563', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+        >
+          ← Back to Search
+        </button>
+      </div>
+
+      {isLoading ? (
+        <Spinner />
+      ) : errorMessage ? (
+        <p className="text-red-500">{errorMessage}</p>
+      ) : watchlistMovies.length === 0 ? (
+        <p style={{ color: 'white' }}>Your watchlist is empty. Add movies from the home page.</p>
+      ) : (
+        <ul style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '30px', padding: 0, listStyle: 'none' }}>
+          {watchlistMovies.map((movie) => (
+            <li key={movie.movieId || movie._id} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <img 
+                src={movie.posterPath && movie.posterPath !== 'N/A' ? movie.posterPath : 'https://via.placeholder.com/200x300'} 
+                alt={movie.title} 
+                style={{ width: '100%', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)' }}
+              />
+              <strong style={{ color: 'white', display: 'block', fontSize: '1.1rem' }}>{movie.title}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+const AppHeader = ({ searchTerm, setSearchTerm, onOpenWatchlist }) => (
+  <header>
+    <img src="./hero.png" alt="Hero Banner" />
+    <h1>Find <span className="text-gradient">Movies</span> You'll Enjoy Without the Hassle</h1>
+
+    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '15px', width: '100%', marginTop: '20px' }}>
+      <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+      
+      <button 
+        type="button" 
+        onClick={onOpenWatchlist}
+        style={{
+          padding: '12px 24px',
+          backgroundColor: '#8b5cf6',
+          color: 'white',
+          borderRadius: '8px',
+          border: 'none',
+          cursor: 'pointer',
+          fontWeight: 'bold',
+          fontSize: '1rem',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+        }}
+      >
+        📋 Open Watchlist
+      </button>
+    </div>
+  </header>
+)
 
 const API_BASE_URL = 'https://www.omdbapi.com/';
 const API_KEY = import.meta.env.VITE_OMDB_API_KEY;
@@ -19,9 +109,9 @@ const App = () => {
 
   const [trendingMovies, setTrendingMovies] = useState([]);
   const [selectedMovieId, setSelectedMovieId] = useState(null);
+  const [view, setView] = useState('home');
+  const [globalWatchlist, setGlobalWatchlist] = useState([]);
 
-  // Debounce the search term to prevent making too many API requests
-  // by waiting for the user to stop typing for 500ms
   useDebounce(() => setDebouncedSearchTerm(searchTerm), 500, [searchTerm])
 
   const fetchMovies = async (query = '') => {
@@ -64,12 +154,20 @@ const App = () => {
   const loadTrendingMovies = async () => {
     try {
       const movies = await getTrendingMovies();
-
       setTrendingMovies(movies);
     } catch (error) {
       console.error(`Error fetching trending movies: ${error}`);
     }
   }
+
+  const loadGlobalWatchlist = async () => {
+    try {
+      const items = await getWatchlistItems();
+      setGlobalWatchlist(items);
+    } catch (error) {
+      console.error('Failed to fetch global watchlist', error);
+    }
+  };
 
   useEffect(() => {
     fetchMovies(debouncedSearchTerm);
@@ -77,6 +175,7 @@ const App = () => {
 
   useEffect(() => {
     loadTrendingMovies();
+    loadGlobalWatchlist();
   }, []);
 
   return (
@@ -84,18 +183,25 @@ const App = () => {
       <div className="pattern"/>
 
       <div className="wrapper">
-        <header>
-          <img src="./hero.png" alt="Hero Banner" />
-          <h1>Find <span className="text-gradient">Movies</span> You'll Enjoy Without the Hassle</h1>
+        <AppHeader
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          onOpenWatchlist={() => setView('watchlist')}
+        />
 
-          <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-        </header>
-
-        {selectedMovieId ? (
+        {view === 'watchlist' ? (
+          <WatchlistView onBack={() => {
+            setView('home');
+            // Refresh the global watchlist when coming back from the watchlist view
+            // to ensure any new state changes are synced
+            loadGlobalWatchlist();
+          }} />
+        ) : selectedMovieId ? (
           <MovieDetails movieId={selectedMovieId} onBack={() => setSelectedMovieId(null)} />
         ) : (
           <>
-            {/* {trendingMovies.length > 0 && (
+            {/* Replace your commented out trending section with this */}
+            {trendingMovies.length > 0 && (
               <section className="trending">
                 <h2>Trending Movies</h2>
 
@@ -103,12 +209,12 @@ const App = () => {
                   {trendingMovies.map((movie, index) => (
                     <li key={movie.$id}>
                       <p>{index + 1}</p>
-                      <img src={movie.poster_url} alt={movie.title} />
+                      <img src={movie.poster} alt={movie.Title} />
                     </li>
                   ))}
                 </ul>
               </section>
-            )} */}
+            )}
 
             <section className="all-movies">
               <h2>All Movies</h2>
@@ -119,13 +225,18 @@ const App = () => {
                 <p className="text-red-500">{errorMessage}</p>
               ) : (
                 <ul>
-                  {movieList.map((movie) => (
-                    <MovieCard
-                      key={movie.imdbID || movie.Title}
-                      movie={movie}
-                      onSelect={() => setSelectedMovieId(movie.imdbID)}
-                    />
-                  ))}
+                  {movieList.map((movie) => {
+                    const isAlreadyAdded = globalWatchlist.some(w => w.movieId === movie.imdbID);
+
+                    return (
+                      <MovieCard
+                        key={movie.imdbID || movie.Title}
+                        movie={movie}
+                        isWatchlisted={isAlreadyAdded}
+                        onSelect={() => setSelectedMovieId(movie.imdbID)}
+                      />
+                    );
+                  })}
                 </ul>
               )}
             </section>
