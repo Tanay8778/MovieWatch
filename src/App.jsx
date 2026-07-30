@@ -4,12 +4,24 @@ import Spinner from './components/Spinner.jsx'
 import MovieCard from './components/MovieCard.jsx'
 import MovieDetails from './components/MovieDetails.jsx'
 import { useDebounce } from 'react-use'
-import { getTrendingMovies, getWatchlistItems, updateSearchCount } from './appwrite.js'
+import { getTrendingMovies, getWatchlistItems, updateSearchCount, removeFromWatchlist } from './appwrite.js'
 
 const WatchlistView = ({ onBack }) => {
   const [watchlistMovies, setWatchlistMovies] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+
+  // NEW FUNCTION: Removes the movie and instantly updates the screen
+  const handleRemove = async (movieId) => {
+    try {
+      await removeFromWatchlist(movieId)
+      // Filter the deleted movie out of the local array to instantly remove it from the screen
+      setWatchlistMovies((prevMovies) => prevMovies.filter((m) => m.movieId !== movieId))
+    } catch (error) {
+      console.error('Failed to remove movie', error)
+      alert('Failed to remove movie from watchlist.')
+    }
+  }
 
   useEffect(() => {
     const loadWatchlist = async () => {
@@ -59,6 +71,24 @@ const WatchlistView = ({ onBack }) => {
                 style={{ width: '100%', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)' }}
               />
               <strong style={{ color: 'white', display: 'block', fontSize: '1.1rem' }}>{movie.title}</strong>
+              
+              {/* NEW BUTTON: Remove from Watchlist */}
+              <button
+                type="button"
+                onClick={() => handleRemove(movie.movieId)}
+                style={{
+                  marginTop: 'auto', // Pushes the button to the bottom of the card
+                  padding: '8px',
+                  backgroundColor: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                }}
+              >
+                − Remove
+              </button>
             </li>
           ))}
         </ul>
